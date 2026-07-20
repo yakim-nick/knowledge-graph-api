@@ -1,28 +1,71 @@
 # knowledge-graph-api
 
-A knowledge graph API. A FastAPI service that builds a graph of knowledge from
-documents: it extracts entities and relationships (LLM + Jinja templates),
-stores them in Neo4j + PostgreSQL (pgvector), and serves hybrid search
-(vector + graph).
+> **Engineering report** — builds a knowledge graph from documents (entity
+> extraction + graph + vector store) and serves hybrid search. By Nick Yakim.
 
-## Stack
-- FastAPI (ingest / query / graph routes)
-- Neo4j (`src/models/neo4j_driver.py`) + PostgreSQL/pgvector (`src/models/pg_driver.py`)
-- Entity extraction: `src/services/entity_extractor.py`
-- Graph building: `src/services/graph_builder.py`
-- Hybrid search: `src/services/hybrid_search.py`
-- Document parsing: `src/services/document_parser.py`
-- Prompts: `src/templates/extraction_prompt.j2`
+## 1. Problem & goal
+Plain vector search loses relationships ("A acquired B", "X depends on Y").
+This service extracts entities/relations from docs, stores them in Neo4j
+(graph) + PostgreSQL/pgvector (vectors), and serves **hybrid search** that
+blends both signals for more accurate retrieval.
 
-## Run
+## 2. Architecture
+
+```mermaid
+flowchart LR
+  DOC[Documents] --> PARSE[document_parser]
+  PARSE --> EX[entity_extractor: LLM]
+  EX --> GB[graph_builder]
+  GB --> NEO[(Neo4j)]
+  GB --> PG[(PostgreSQL/pgvector)]
+  Q[Query] --> HS[hybrid_search]
+  NEO --> HS
+  PG --> HS
+  HS --> R[Ranked results]
+```
+
+```
+ ingest                          query
+   │                              │
+   ▼                              ▼
+document_parser ─▶ entity_extractor ─▶ graph_builder
+                                            │
+                              ┌─────────────┴─────────────┐
+                              ▼                           ▼
+                         Neo4j (graph)            PostgreSQL (pgvector)
+                              │                           │
+                              └───────── hybrid_search ◀──┘
+                                            │
+                                            ▼
+                                       ranked results
+```
+
+## 3. Components
+- `src/models/neo4j_driver.py` — Neo4j connection.
+- `src/models/pg_driver.py` — PostgreSQL/pgvector connection.
+- `src/models/schemas.py` — data models.
+- `src/routes/ingest.py` / `query.py` / `graph.py` — API surface.
+- `src/services/document_parser.py` — extract text from docs.
+- `src/services/entity_extractor.py` — LLM entity/relation extraction.
+- `src/services/graph_builder.py` — build the graph.
+- `src/services/embeddings.py` — vector embeddings.
+- `src/services/hybrid_search.py` — combine graph + vector results.
+- `src/templates/extraction_prompt.j2` — extraction prompt.
+
+## 4. Run
 ```bash
 pip install -e .
 uvicorn src.main:app --port 8000
 ```
 
-## CI
-`.github/workflows/ci.yml` — syntax check + `pytest` on every push, with
-least-privilege permissions and pinned action versions.
+## 5. Why hybrid?
+Vector search finds "semantically similar"; graph traversal finds "directly
+connected." Hybrid retrieval returns answers that are both relevant and
+relationally grounded — useful for RAG over interconnected knowledge.
+
+## 6. CI
+`.github/workflows/ci.yml` — syntax check + pytest, least-privilege, pinned
+actions, Dependabot.
 
 ## Author
-Nick Yakim — github.com/yakim-nick
+Nick Yakim — [github.com/yakim-nick](https://github.com/yakim-nick)
