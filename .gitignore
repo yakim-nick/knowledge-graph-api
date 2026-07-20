@@ -1,0 +1,19 @@
+# Python gitignore (AI projects)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+.pytest_cache/
+*.db
+*.sqlite3
+.DS_Store
+.idea/
+.vscode/

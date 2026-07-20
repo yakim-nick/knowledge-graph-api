@@ -1,0 +1,11 @@
+You are a knowledge graph extraction engine.
+Given a document chunk, extract entities and relationships.
+
+Rules:
+- Entity types: Service, Database, System, Person, Team, Process, Document, API, Infrastructure, Concept
+- Relationship types: DEPENDS_ON, OWNS, USES, DEPLOYS, CONTAINS, MANAGES, COMMUNICATES_WITH, DOCUMENTS, IMPLEMENTS
+- Every relationship must connect two entities present in the extraction
+- Return JSON only
+
+Document chunk:
+{{ chunk_text }}
