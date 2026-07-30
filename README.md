@@ -53,9 +53,29 @@ document_parser ─▶ entity_extractor ─▶ graph_builder
 - `src/templates/extraction_prompt.j2` — extraction prompt.
 
 ## 4. Run
+
+### API server
 ```bash
 pip install -e .
 uvicorn src.main:app --port 8000
+```
+
+### Streamlit UI (optional)
+The project includes a **Streamlit dashboard** at `ui/app.py` that calls the
+existing Python modules directly.
+
+```bash
+# Install with UI extras
+pip install -e ".[ui]"
+
+# Launch the dashboard
+streamlit run ui/app.py --server.port=8501
+```
+
+Or run via Docker Compose (UI enabled):
+```bash
+docker compose --profile ui up -d
+# Open http://localhost:8501
 ```
 
 ## 5. Why hybrid?

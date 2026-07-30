@@ -60,6 +60,25 @@ services:
       -c shared_preload_libraries=vector
       -c max_connections=200
 
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    ports:
+      - "8501:8501"
+    env_file: .env
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./ui:/app/ui
+    restart: unless-stopped
+    profiles:
+      - ui
+
 volumes:
   neo4j_data:
   neo4j_logs:

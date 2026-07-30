@@ -20,3 +20,7 @@ dependencies = [
     "unstructured[pdf,md]>=0.14.0",
     "numpy>=1.26.0",
 ]
+
+[project.optional-dependencies]
+ui = ["streamlit>=1.35.0", "pyvis>=0.3.2", "pandas>=2.0.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23.0", "ruff>=0.4.0", "mypy>=1.10.0"]
