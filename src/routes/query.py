@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, HTTPException, Request
 
 from src.services.hybrid_search import HybridSearch
@@ -13,17 +15,19 @@ from src.models.schemas import (
 
 router = APIRouter(prefix="/query", tags=["query"])
 
+_FORBIDDEN_KEYWORDS_RE = re.compile(
+    r"\b(?:CREATE|DELETE|SET|REMOVE|DROP|MERGE)\b",
+    re.IGNORECASE,
+)
+
 
 @router.post("/graph", response_model=GraphQueryResponse)
 async def query_graph(request: Request, body: GraphQueryRequest):
-    forbidden_keywords = {"CREATE ", "DELETE ", "SET ", "REMOVE ", "DROP ", "MERGE "}
-    upper = body.cypher.upper()
-    for kw in forbidden_keywords:
-        if kw in upper:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Write operations not allowed: {kw.strip()} is forbidden",
-            )
+    if _FORBIDDEN_KEYWORDS_RE.search(body.cypher):
+        raise HTTPException(
+            status_code=403,
+            detail="Write operations not allowed in read-only graph queries",
+        )
 
     try:
         results = await request.app.state.neo4j.run_cypher(body.cypher, body.parameters)

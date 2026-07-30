@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from src.config import settings
+from src.middleware.auth import setup_auth
 from src.models.neo4j_driver import Neo4jDriver
 from src.models.pg_driver import PgDriver
 from src.routes.ingest import router as ingest_router
@@ -59,6 +60,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(graph_router)
+
+setup_auth(app)
 
 
 @app.get("/health")

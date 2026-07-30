@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncpg
-import numpy as np
 from pgvector.asyncpg import register_vector
 
 from src.config import settings

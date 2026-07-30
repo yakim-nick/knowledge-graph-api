@@ -4,7 +4,6 @@ import pytest
 from src.models.schemas import (
     IngestResponse,
     GraphQueryRequest,
-    GraphQueryResponse,
     SearchRequest,
     SearchResponse,
     SearchResultItem,

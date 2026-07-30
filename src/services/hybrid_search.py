@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -60,10 +61,11 @@ class HybridSearch:
             entity_list = row.get("entities", [])
             if isinstance(entity_list, str):
                 try:
-                    import json
                     entity_list = json.loads(entity_list)
                 except (json.JSONDecodeError, TypeError):
                     entity_list = []
+            elif not isinstance(entity_list, list):
+                entity_list = []
 
             for entity_name in entity_list[:5]:
                 try:

@@ -1,4 +1,3 @@
-import os
 from enum import StrEnum
 
 from pydantic_settings import BaseSettings
@@ -14,6 +13,7 @@ class Environment(StrEnum):
 
 
 class Settings(BaseSettings):
+    api_key: str = ""
     openai_api_key: str = ""
     extraction_model: str = "gpt-4o"
     embedding_model: str = "text-embedding-3-small"

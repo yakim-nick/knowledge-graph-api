@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader
 from openai import AsyncOpenAI
 
 from src.config import settings
@@ -11,18 +12,9 @@ from src.models.schemas import ExtractionResult, Entity, Relationship
 
 logger = logging.getLogger(__name__)
 
-
-EXTRACTION_SYSTEM_PROMPT = """You are a knowledge graph extraction engine.
-Given a document chunk, extract:
-1. Entities — distinct named concepts (people, systems, services, databases, teams, processes, documents)
-2. Relationships — directed connections between entities with a type label
-
-Rules:
-- Entity types must be one of: Service, Database, System, Person, Team, Process, Document, API, Infrastructure, Concept
-- Relationship types must be one of: DEPENDS_ON, OWNS, USES, DEPLOYS, CONTAINS, MANAGES, COMMUNICATES_WITH, DOCUMENTS, IMPLEMENTS
-- Every relationship must connect two entities that both appear in the extraction
-- Include a brief description in properties for each entity and relationship
-- Return ONLY valid JSON with no markdown fences"""
+_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
+_jinja_env = Environment(loader=FileSystemLoader(str(_TEMPLATE_DIR)))
+EXTRACTION_SYSTEM_PROMPT = _jinja_env.get_template("extraction_prompt.j2").render()
 
 
 class EntityExtractor:

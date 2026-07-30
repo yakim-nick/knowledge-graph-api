@@ -19,6 +19,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+      start_period: 30s
 
   neo4j:
     image: neo4j:5-community
@@ -39,6 +40,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+      start_period: 60s
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -55,6 +57,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 30s
     command: |
       postgres
       -c shared_preload_libraries=vector
