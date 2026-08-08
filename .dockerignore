@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+.env
+*.log
+.DS_Store
+.git
+.github
+.venv
+venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+coverage
+htmlcov
+dist
+build
