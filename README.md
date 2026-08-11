@@ -1,5 +1,7 @@
 # knowledge-graph-api
 
+[![CI](https://github.com/yakim-nick/knowledge-graph-api/actions/workflows/ci.yml/badge.svg)](https://github.com/yakim-nick/knowledge-graph-api/actions/workflows/ci.yml)
+
 > **Engineering report** — builds a knowledge graph from documents (entity
 > extraction + graph + vector store) and serves hybrid search. By Nick Yakim.
 
