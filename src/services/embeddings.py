@@ -1,3 +1,5 @@
+"""OpenAI embedding client used to vectorise chunks and search queries."""
+
 from __future__ import annotations
 
 import logging
@@ -10,11 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 class EmbeddingsService:
+    """Generate OpenAI embeddings for single texts and batches."""
+
     def __init__(self) -> None:
         self._client = AsyncOpenAI(api_key=settings.openai_api_key)
         self._model = settings.embedding_model
 
     async def embed(self, text: str) -> list[float]:
+        """Embed a single text (used for search queries)."""
         try:
             response = await self._client.embeddings.create(
                 model=self._model,
@@ -26,6 +31,7 @@ class EmbeddingsService:
             raise
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Embed many texts in one API call (used for indexing document chunks)."""
         try:
             response = await self._client.embeddings.create(
                 model=self._model,

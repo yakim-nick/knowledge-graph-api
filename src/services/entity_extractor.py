@@ -1,3 +1,5 @@
+"""LLM-driven entity and relationship extraction from document chunks."""
+
 from __future__ import annotations
 
 import json
@@ -14,15 +16,23 @@ logger = logging.getLogger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
 _jinja_env = Environment(loader=FileSystemLoader(str(_TEMPLATE_DIR)))
+# Render the system prompt once at import time; it is static per deployment.
 EXTRACTION_SYSTEM_PROMPT = _jinja_env.get_template("extraction_prompt.j2").render()
 
 
 class EntityExtractor:
+    """Ask the LLM to extract entities/relationships from a chunk and parse the JSON reply."""
+
     def __init__(self) -> None:
         self._client = AsyncOpenAI(api_key=settings.openai_api_key)
         self._model = settings.extraction_model
 
     async def extract(self, chunk_text: str) -> ExtractionResult:
+        """Extract entities and relationships from *chunk_text*.
+
+        Returns an empty ExtractionResult on any failure so a single bad chunk
+        never aborts the whole ingestion pipeline.
+        """
         try:
             response = await self._client.chat.completions.create(
                 model=self._model,
@@ -36,31 +46,32 @@ class EntityExtractor:
                 response_format={"type": "json_object"},
                 temperature=0.1,
             )
-
             raw = response.choices[0].message.content or "{}"
-            parsed = json.loads(raw)
-
-            entities = [
-                Entity(name=e["name"], type=e["type"], properties=e.get("properties", {}))
-                for e in parsed.get("entities", [])
-            ]
-
-            relationships = [
-                Relationship(
-                    source=r["source"],
-                    target=r["target"],
-                    rel_type=r["rel_type"],
-                    properties=r.get("properties", {}),
-                )
-                for r in parsed.get("relationships", [])
-            ]
-
-            logger.debug(f"Extracted {len(entities)} entities, {len(relationships)} relationships")
-            return ExtractionResult(entities=entities, relationships=relationships)
-
+            return self._parse_response(raw)
         except json.JSONDecodeError as exc:
             logger.error(f"LLM returned invalid JSON: {exc}")
             return ExtractionResult()
         except Exception as exc:
             logger.error(f"Extraction failed: {exc}", exc_info=True)
             return ExtractionResult()
+
+    def _parse_response(self, raw: str) -> ExtractionResult:
+        """Convert the LLM's JSON payload into typed Entity/Relationship models."""
+        parsed = json.loads(raw)
+        entities = [
+            Entity(name=e["name"], type=e["type"], properties=e.get("properties", {}))
+            for e in parsed.get("entities", [])
+        ]
+        relationships = [
+            Relationship(
+                source=r["source"],
+                target=r["target"],
+                rel_type=r["rel_type"],
+                properties=r.get("properties", {}),
+            )
+            for r in parsed.get("relationships", [])
+        ]
+        logger.debug(
+            f"Extracted {len(entities)} entities, {len(relationships)} relationships"
+        )
+        return ExtractionResult(entities=entities, relationships=relationships)

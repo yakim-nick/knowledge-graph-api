@@ -190,12 +190,15 @@ def _fetch_all_edges(neo4j: Neo4jDriver) -> list[dict]:
 def _fetch_documents(pg: PgDriver) -> list[str]:
     """Return distinct document names."""
     rows = _run_async(
-        pg._pool.fetch("SELECT DISTINCT document_name FROM document_chunks ORDER BY document_name")
+        pg._pool.fetch(
+            "SELECT DISTINCT document_name FROM document_chunks ORDER BY document_name"
+        )
     )
     return [r["document_name"] for r in rows]
 
 
 def _fetch_document_chunks(pg: PgDriver, doc_name: str) -> pd.DataFrame:
+    """Return the chunks of one document as a DataFrame for display."""
     rows = _run_async(
         pg._pool.fetch(
             "SELECT id, chunk_index, text, entities FROM document_chunks WHERE document_name = $1 ORDER BY chunk_index",
@@ -209,14 +212,23 @@ def _build_pyvis_html(nodes: list[dict], edges: list[dict]) -> str:
     """Build a self-contained pyvis Network HTML string."""
     from pyvis.network import Network
 
-    net = Network(height="600px", width="100%", directed=True, notebook=False, bgcolor="#ffffff", font_color="#111827")
+    net = Network(
+        height="600px",
+        width="100%",
+        directed=True,
+        notebook=False,
+        bgcolor="#ffffff",
+        font_color="#111827",
+    )
 
     # Add nodes
     for n in nodes:
         label = n["name"]
         title = f"<b>{n['name']}</b><br/>Type: {n['type']}"
         color = _entity_color(n.get("type", ""))
-        net.add_node(n["name"], label=label, title=title, color=color, size=18, borderWidth=2)
+        net.add_node(
+            n["name"], label=label, title=title, color=color, size=18, borderWidth=2
+        )
 
     # Add edges
     for e in edges:
@@ -252,6 +264,7 @@ def _build_pyvis_html(nodes: list[dict], edges: list[dict]) -> str:
 
 
 def _entity_color(etype: str) -> str:
+    """Return the palette colour for an entity type, falling back to grey."""
     palette = {
         "Service": "#3b82f6",
         "Database": "#8b5cf6",
@@ -277,18 +290,24 @@ def _search(
 ) -> list[dict]:
     """Run a hybrid search and return results as plain dicts."""
     search = HybridSearch(neo4j, pg)
-    items = _run_async(search.search(query=query_text, n_results=n_results, entity_filter=entity_filter))
+    items = _run_async(
+        search.search(
+            query=query_text, n_results=n_results, entity_filter=entity_filter
+        )
+    )
     out = []
     for item in items:
-        out.append({
-            "id": item.id,
-            "document_name": item.document_name,
-            "chunk_index": item.chunk_index,
-            "text": item.text,
-            "entities": item.entities,
-            "similarity": item.similarity,
-            "graph_context": item.graph_context,
-        })
+        out.append(
+            {
+                "id": item.id,
+                "document_name": item.document_name,
+                "chunk_index": item.chunk_index,
+                "text": item.text,
+                "entities": item.entities,
+                "similarity": item.similarity,
+                "graph_context": item.graph_context,
+            }
+        )
     return out
 
 
@@ -329,7 +348,9 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 
-    if uploaded_file is not None and st.button("⚡ Extract & Build Graph", type="primary", use_container_width=True):
+    if uploaded_file is not None and st.button(
+        "⚡ Extract & Build Graph", type="primary", use_container_width=True
+    ):
         if neo4j is None or pg is None:
             st.error("Cannot process — database connections are not available.")
         else:
@@ -337,7 +358,10 @@ with st.sidebar:
             with ingest_placeholder.container():
                 with st.spinner("Parsing document …"):
                     content = uploaded_file.read()
-                    parser = DocumentParser(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap)
+                    parser = DocumentParser(
+                        chunk_size=settings.chunk_size,
+                        chunk_overlap=settings.chunk_overlap,
+                    )
                     chunks = _run_async(parser.parse(content, uploaded_file.name))
                 if not chunks:
                     st.error("Document produced no chunks.")
@@ -351,12 +375,16 @@ with st.sidebar:
                         result = _run_async(extractor.extract(chunk.text))
                         all_entities.extend(result.entities)
                         all_relationships.extend(result.relationships)
-                        progress_bar.progress((i + 1) / len(chunks), text=f"Chunk {i + 1}/{len(chunks)}")
+                        progress_bar.progress(
+                            (i + 1) / len(chunks), text=f"Chunk {i + 1}/{len(chunks)}"
+                        )
                     with st.spinner("Building graph & indexing …"):
                         builder = GraphBuilder(neo4j)
-                        nodes_created = _run_async(builder.build(all_entities, all_relationships))
+                        nodes_created = _run_async(
+                            builder.build(all_entities, all_relationships)
+                        )
                         search = HybridSearch(neo4j, pg)
-                        _run_async(search.index(chunks, all_entities))
+                        _run_async(search.index_chunks(chunks, all_entities))
                     st.success(
                         f"✅ **{uploaded_file.name}** ingested — "
                         f"{len(all_entities)} entities, {len(all_relationships)} relationships, "
@@ -371,7 +399,11 @@ with st.sidebar:
 
     # --- Stats (always visible) ---
     st.markdown("### 📊 Statistics")
-    stats = _fetch_stats(neo4j, pg) if (neo4j is not None and pg is not None) else {"nodes": 0, "relationships": 0, "vector_chunks": 0}
+    stats = (
+        _fetch_stats(neo4j, pg)
+        if (neo4j is not None and pg is not None)
+        else {"nodes": 0, "relationships": 0, "vector_chunks": 0}
+    )
     st.metric("Graph Nodes", stats["nodes"])
     st.metric("Relationships", stats["relationships"])
     st.metric("Vector Chunks", stats["vector_chunks"])
@@ -398,7 +430,9 @@ with tab_dashboard:
     )
 
     if neo4j is None and pg is None:
-        st.warning("No database connections available. Start the API stack (`docker compose up`) and refresh.")
+        st.warning(
+            "No database connections available. Start the API stack (`docker compose up`) and refresh."
+        )
     else:
         stats = _fetch_stats(neo4j, pg)
         kpi_cols = st.columns(3)
@@ -430,12 +464,19 @@ with tab_dashboard:
                 )
             )
             if type_rows:
-                st.markdown("<div class='section-title'>Entities by Type</div>", unsafe_allow_html=True)
+                st.markdown(
+                    "<div class='section-title'>Entities by Type</div>",
+                    unsafe_allow_html=True,
+                )
                 type_df = pd.DataFrame(type_rows)
-                st.bar_chart(type_df.set_index("type"), height=250, use_container_width=True)
+                st.bar_chart(
+                    type_df.set_index("type"), height=250, use_container_width=True
+                )
 
         # Recent activity placeholder
-        st.markdown("<div class='section-title'>Getting Started</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='section-title'>Getting Started</div>", unsafe_allow_html=True
+        )
         st.markdown(
             """
             1. **Upload a document** using the sidebar file picker.
@@ -450,7 +491,9 @@ with tab_dashboard:
 # ═══════════════════════════════════════════════════════════════════════════
 
 with tab_graph:
-    st.markdown("<div class='section-title'>Knowledge Graph</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='section-title'>Knowledge Graph</div>", unsafe_allow_html=True
+    )
 
     if neo4j is None:
         st.warning("Neo4j is not connected. Start the stack and refresh.")
@@ -467,7 +510,12 @@ with tab_graph:
             st.info("The graph is empty. Ingest a document first.")
         else:
             st.markdown(f"_{len(nodes):,} nodes · {len(edges):,} relationships_")
-            viz_mode = st.radio("Visualization", ["Interactive Graph", "Node Table", "Edge Table"], horizontal=True, label_visibility="collapsed")
+            viz_mode = st.radio(
+                "Visualization",
+                ["Interactive Graph", "Node Table", "Edge Table"],
+                horizontal=True,
+                label_visibility="collapsed",
+            )
 
             if viz_mode == "Interactive Graph":
                 try:
@@ -476,7 +524,9 @@ with tab_graph:
 
                     st_html(html_str, height=620, scrolling=False)
                 except ImportError:
-                    st.warning("pyvis not installed — showing tables instead. Install with `pip install pyvis`.")
+                    st.warning(
+                        "pyvis not installed — showing tables instead. Install with `pip install pyvis`."
+                    )
                     viz_mode = "Node Table"  # fallback
 
             if viz_mode == "Node Table":
@@ -498,16 +548,28 @@ with tab_graph:
 # ═══════════════════════════════════════════════════════════════════════════
 
 with tab_search:
-    st.markdown("<div class='section-title'>Hybrid Search</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='section-title'>Hybrid Search</div>", unsafe_allow_html=True
+    )
 
     if neo4j is None or pg is None:
         st.warning("Database connections required. Start the stack and refresh.")
     else:
         col_q, col_n = st.columns([3, 1])
         with col_q:
-            query_text = st.text_input("Search query", placeholder="e.g. microservices architecture …", label_visibility="collapsed")
+            query_text = st.text_input(
+                "Search query",
+                placeholder="e.g. microservices architecture …",
+                label_visibility="collapsed",
+            )
         with col_n:
-            n_results = st.number_input("Results", min_value=1, max_value=50, value=10, label_visibility="collapsed")
+            n_results = st.number_input(
+                "Results",
+                min_value=1,
+                max_value=50,
+                value=10,
+                label_visibility="collapsed",
+            )
 
         if query_text:
             with st.spinner("Searching …"):
@@ -527,14 +589,14 @@ with tab_search:
                             f"""
                             <div class="result-card">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                                    <strong style="font-size:0.9rem;">{r['document_name']}</strong>
-                                    <span class="score">score: {r['similarity']:.4f}</span>
+                                    <strong style="font-size:0.9rem;">{r["document_name"]}</strong>
+                                    <span class="score">score: {r["similarity"]:.4f}</span>
                                 </div>
                                 <div style="margin-top:0.4rem;font-size:0.9rem;color:#374151;line-height:1.5;">
-                                    {r['text'][:500]}{'…' if len(r['text']) > 500 else ''}
+                                    {r["text"][:500]}{"…" if len(r["text"]) > 500 else ""}
                                 </div>
                                 <div class="entities">
-                                    {''.join(f'<span class="entity-badge">{e}</span>' for e in r['entities'][:10])}
+                                    {"".join(f'<span class="entity-badge">{e}</span>' for e in r["entities"][:10])}
                                 </div>
                             </div>
                             """,
@@ -543,16 +605,22 @@ with tab_search:
 
                         # Expandable graph context
                         if r.get("graph_context"):
-                            with st.expander(f"Graph context ({len(r['graph_context'])} relation(s))"):
+                            with st.expander(
+                                f"Graph context ({len(r['graph_context'])} relation(s))"
+                            ):
                                 ctx_df = pd.DataFrame(r["graph_context"])
-                                st.dataframe(ctx_df, use_container_width=True, hide_index=True)
+                                st.dataframe(
+                                    ctx_df, use_container_width=True, hide_index=True
+                                )
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 4 — Documents
 # ═══════════════════════════════════════════════════════════════════════════
 
 with tab_documents:
-    st.markdown("<div class='section-title'>Ingested Documents</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='section-title'>Ingested Documents</div>", unsafe_allow_html=True
+    )
 
     if pg is None:
         st.warning("PostgreSQL is not connected.")
@@ -566,7 +634,9 @@ with tab_documents:
         if not doc_names:
             st.info("No documents have been ingested yet.")
         else:
-            selected_doc = st.selectbox("Select a document", doc_names, label_visibility="collapsed")
+            selected_doc = st.selectbox(
+                "Select a document", doc_names, label_visibility="collapsed"
+            )
             if selected_doc:
                 chunks_df = _fetch_document_chunks(pg, selected_doc)
                 if not chunks_df.empty:

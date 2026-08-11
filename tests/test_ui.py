@@ -19,8 +19,10 @@ import pytest
 
 def _async_method(return_value=None):
     """Return an async function that returns *return_value* when called."""
+
     async def _inner(*args, **kwargs):
         return return_value
+
     return _inner
 
 
@@ -162,7 +164,9 @@ _PATCHED["src"].services.embeddings = _PATCHED["src.services.embeddings"]
 _PATCHED["src"].config = _PATCHED["src.config"]
 
 # Make Neo4jDriver() and PgDriver() return our preconfigured instances
-_PATCHED["src.models.neo4j_driver"].Neo4jDriver = MagicMock(return_value=_neo4j_instance)
+_PATCHED["src.models.neo4j_driver"].Neo4jDriver = MagicMock(
+    return_value=_neo4j_instance
+)
 _PATCHED["src.models.pg_driver"].PgDriver = MagicMock(return_value=_pg_instance)
 
 # Settings
@@ -181,6 +185,7 @@ import ui.app  # noqa: E402
 
 class TestEntityColor:
     def test_returns_known_colors(self) -> None:
+        """Known entity types map to their palette colour."""
         assert ui.app._entity_color("Service") == "#3b82f6"
         assert ui.app._entity_color("Database") == "#8b5cf6"
         assert ui.app._entity_color("Person") == "#f59e0b"
@@ -188,6 +193,7 @@ class TestEntityColor:
         assert ui.app._entity_color("Concept") == "#f97316"
 
     def test_fallback_for_unknown_type(self) -> None:
+        """Unknown entity types fall back to the default grey."""
         assert ui.app._entity_color("FooBar") == "#6b7280"
 
 
@@ -198,12 +204,16 @@ class TestEntityColor:
 
 class TestRunAsync:
     def test_runs_coroutine_and_returns_result(self) -> None:
+        """_run_async awaits a coroutine and returns its value."""
+
         async def double(x: int) -> int:
             return x * 2
 
         assert ui.app._run_async(double(21)) == 42
 
     def test_raises_on_coroutine_error(self) -> None:
+        """_run_async propagates exceptions raised inside the coroutine."""
+
         async def crash() -> None:
             raise ValueError("boom")
 
@@ -211,6 +221,8 @@ class TestRunAsync:
             ui.app._run_async(crash())
 
     def test_with_string_result(self) -> None:
+        """_run_async works with non-numeric return values."""
+
         async def greet(name: str) -> str:
             return f"Hello {name}"
 
@@ -224,6 +236,7 @@ class TestRunAsync:
 
 class TestBuildPyvisHtml:
     def test_returns_html_string(self) -> None:
+        """_build_pyvis_html returns a non-trivial HTML string."""
         nodes = [{"name": "A", "type": "Service", "properties": {}}]
         edges: list[dict] = []
         html = ui.app._build_pyvis_html(nodes, edges)
@@ -231,6 +244,7 @@ class TestBuildPyvisHtml:
         assert len(html) > 100
 
     def test_includes_graph_structure(self) -> None:
+        """_build_pyvis_html embeds node names in the generated HTML."""
         nodes = [
             {"name": "A", "type": "Service", "properties": {}},
             {"name": "B", "type": "Database", "properties": {}},
@@ -248,10 +262,12 @@ class TestBuildPyvisHtml:
 
 class TestFetchStats:
     def test_returns_zeros_when_both_none(self) -> None:
+        """_fetch_stats returns zeroed counts when both drivers are None."""
         result = ui.app._fetch_stats(None, None)
         assert result == {"nodes": 0, "relationships": 0, "vector_chunks": 0}
 
     def test_returns_zeros_when_neo4j_none(self) -> None:
+        """_fetch_stats skips Neo4j counts when the driver is None."""
         pg = MagicMock()
         result = ui.app._fetch_stats(None, pg)
         assert result["nodes"] == 0
@@ -265,10 +281,13 @@ class TestFetchStats:
 
 class TestAppInit:
     def test_set_page_config_was_called(self) -> None:
+        """The app calls set_page_config on import."""
         _streamlit_mock.set_page_config.assert_called_once()
 
     def test_entity_color_available(self) -> None:
+        """The app exposes the _entity_color helper."""
         assert callable(ui.app._entity_color)
 
     def test_run_async_available(self) -> None:
+        """The app exposes the _run_async helper."""
         assert callable(ui.app._run_async)
